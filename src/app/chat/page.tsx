@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -33,7 +34,7 @@ type CakeRequest = {
   createdAt: string;
 };
 
-export default function ChatPage() {
+function ChatPageContent() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("requestId");
 
@@ -820,5 +821,22 @@ export default function ChatPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="page">
+          <div className="loading">
+            <div className="spinner" />
+            <p>Loading your chat...</p>
+          </div>
+        </main>
+      }
+    >
+      <ChatPageContent />
+    </Suspense>
   );
 }
