@@ -616,6 +616,123 @@ export default function Home() {
           FOOTER
       ========================================= */}
 
+      {/* Customer Reviews */}
+      <section className="border-t border-[#f0dce3] bg-[#fff8fb] px-5 py-14 sm:px-8 overflow-hidden">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 text-center">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#2563eb]">
+              Customer Reviews
+            </p>
+            <h2 className="text-3xl font-extrabold text-[#7c294d] sm:text-4xl">
+              What Our Customers Say
+            </h2>
+
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <span className="text-4xl font-extrabold text-[#7c294d]">4.7</span>
+              <div className="text-left">
+                <div className="text-xl tracking-wide text-[#f59e0b]">★★★★★</div>
+                <p className="text-sm text-gray-600">out of 5</p>
+              </div>
+            </div>
+          </div>
+
+          {/* One-direction infinite review loop */}
+          <div className="relative overflow-hidden">
+            <div className="flex w-max animate-review-loop">
+              {[
+                {
+                  name: "Debalina Ghosh",
+                  review:
+                    "Beautiful cake and amazing taste. Everything was fresh and beautifully prepared!",
+                },
+                {
+                  name: "Piklu Ray",
+                  review:
+                    "The cake looked wonderful and tasted even better. Really happy with the quality.",
+                },
+                {
+                  name: "Tapash Paul",
+                  review:
+                    "Excellent service and a delicious eggless cake. The Baker did a great job!",
+                },
+                {
+                  name: "Smita Biswas",
+                  review:
+                    "Loved the design and taste. The cake was fresh, soft and perfect for the occasion.",
+                },
+                {
+                  name: "Debalina Ghosh",
+                  review:
+                    "Beautiful cake and amazing taste. Everything was fresh and beautifully prepared!",
+                },
+                {
+                  name: "Piklu Ray",
+                  review:
+                    "The cake looked wonderful and tasted even better. Really happy with the quality.",
+                },
+                {
+                  name: "Tapash Paul",
+                  review:
+                    "Excellent service and a delicious eggless cake. The Baker did a great job!",
+                },
+                {
+                  name: "Smita Biswas",
+                  review:
+                    "Loved the design and taste. The cake was fresh, soft and perfect for the occasion.",
+                },
+              ].map((item, index) => (
+                <div
+                  key={`${item.name}-${index}`}
+                  className="mx-2 w-[280px] shrink-0 sm:w-[330px]"
+                >
+                  <div className="h-full rounded-2xl border border-[#f0dce3] bg-white p-5 shadow-sm">
+                    <div className="mb-3 text-lg tracking-wide text-[#f59e0b]">
+                      ★★★★★
+                    </div>
+
+                    <p className="min-h-[84px] text-sm leading-6 text-gray-600">
+                      “{item.review}”
+                    </p>
+
+                    <div className="mt-5 border-t border-[#f0dce3] pt-4">
+                      <p className="font-bold text-[#7c294d]">{item.name}</p>
+                      <p className="text-xs text-gray-500">Verified Customer</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <style jsx>{`
+          @keyframes reviewLoop {
+            from {
+              transform: translateX(0);
+            }
+            to {
+              transform: translateX(-50%);
+            }
+          }
+
+          .animate-review-loop {
+            animation: reviewLoop 28s linear infinite;
+          }
+
+          @media (max-width: 640px) {
+            .animate-review-loop {
+              animation-duration: 22s;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .animate-review-loop {
+              animation: none;
+            }
+          }
+        `}</style>
+      </section>
+
       <footer className="border-t border-[#f0dce3] bg-white px-5 py-10">
 
         <div className="mx-auto max-w-6xl">

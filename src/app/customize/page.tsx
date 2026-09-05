@@ -10,6 +10,7 @@ export default function CustomizeCakePage() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    area: "",
     budget: 250,
     flavor: "",
     design: "",
@@ -17,7 +18,6 @@ export default function CustomizeCakePage() {
     date: "",
     time: "",
     fulfillment: "pickup",
-    address: "",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +58,7 @@ export default function CustomizeCakePage() {
     if (
       !form.name.trim() ||
       !form.phone.trim() ||
+      !form.area.trim() ||
       form.budget < 250 ||
       form.budget > 2000 ||
       !form.flavor.trim() ||
@@ -66,15 +67,6 @@ export default function CustomizeCakePage() {
       !form.time
     ) {
       setError("Please fill in all required fields.");
-      return;
-    }
-
-    // Validate delivery address
-    if (
-      form.fulfillment === "delivery" &&
-      !form.address.trim()
-    ) {
-      setError("Please enter your delivery address.");
       return;
     }
 
@@ -89,6 +81,7 @@ export default function CustomizeCakePage() {
         body: JSON.stringify({
           customerName: form.name.trim(),
           phone: form.phone.trim(),
+          area: form.area.trim(),
           email: user.email || "",
 
           cakeSize: `Budget ₹${form.budget}`,
@@ -100,11 +93,6 @@ export default function CustomizeCakePage() {
           preferredTime: form.time,
 
           fulfillment: form.fulfillment,
-
-          deliveryAddress:
-            form.fulfillment === "delivery"
-              ? form.address.trim()
-              : "",
 
           deliveryChargeApplicable:
             form.fulfillment === "delivery",
@@ -136,6 +124,7 @@ export default function CustomizeCakePage() {
       setForm({
         name: "",
         phone: "",
+        area: "",
         budget: 250,
         flavor: "",
         design: "",
@@ -143,7 +132,6 @@ export default function CustomizeCakePage() {
         date: "",
         time: "",
         fulfillment: "pickup",
-        address: "",
       });
     } catch (err) {
       console.error("Cake request error:", err);
@@ -220,6 +208,21 @@ export default function CustomizeCakePage() {
                   value={form.phone}
                   onChange={handleChange}
                   placeholder="9876543210"
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label>
+                  Area <span>*</span>
+                </label>
+
+                <input
+                  type="text"
+                  name="area"
+                  value={form.area}
+                  onChange={handleChange}
+                  placeholder="Enter your area / locality"
                   required
                 />
               </div>
@@ -441,20 +444,9 @@ export default function CustomizeCakePage() {
             </div>
 
             {form.fulfillment === "delivery" && (
-              <div className="field">
-                <label>
-                  Delivery Address <span>*</span>
-                </label>
-
-                <textarea
-                  name="address"
-                  value={form.address}
-                  onChange={handleChange}
-                  placeholder="Enter complete delivery address"
-                  rows={4}
-                  required
-                />
-              </div>
+              <p className="delivery-note">
+                📍 Delivery will be arranged based on the area you provided.
+              </p>
             )}
           </section>
 
@@ -597,6 +589,16 @@ export default function CustomizeCakePage() {
 
         .field {
           margin-bottom: 22px;
+        }
+
+        .delivery-note {
+          margin: 18px 0 0;
+          padding: 14px 16px;
+          border-radius: 12px;
+          background: #fff7f0;
+          color: #765447;
+          font-size: 14px;
+          line-height: 1.5;
         }
 
         label {
