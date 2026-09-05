@@ -24,7 +24,7 @@ const translations = {
       "Every cake is prepared with patience, creativity and a personal touch.",
     cakesTitle: "Our Cakes",
     cakesText: "A collection of cakes made with care.",
-    customize: "Customize",
+    customize: "Order Your Custom Cake From Here →",
     price: "Your Budget",
     request: "Tell us what you want",
     requestPlaceholder:
@@ -44,6 +44,7 @@ const translations = {
     footerText: "Fresh cakes, made with care.",
     authorizedOnly: "Authorized bakery management only",
     cancel: "Cancel",
+    myChats: "My Chats",
 
     adminAccess: "Admin Access",
     adminText: "Bakery management",
@@ -67,7 +68,7 @@ const translations = {
       "প্রতিটি কেক ধৈর্য, সৃজনশীলতা এবং যত্নের সঙ্গে তৈরি করা হয়।",
     cakesTitle: "আমাদের কেক",
     cakesText: "যত্নের সঙ্গে তৈরি করা কিছু কেক।",
-    customize: "কাস্টমাইজ করুন",
+    customize: "আপনার কাস্টম কেক এখান থেকে অর্ডার করুন →",
     price: "আপনার বাজেট",
     request: "আপনার পছন্দ জানান",
     requestPlaceholder:
@@ -87,6 +88,7 @@ const translations = {
     footerText: "যত্নের সঙ্গে তৈরি তাজা কেক।",
     authorizedOnly: "শুধুমাত্র অনুমোদিত বেকারি পরিচালনার জন্য",
     cancel: "বাতিল",
+    myChats: "আমার চ্যাট",
 
     adminAccess: "অ্যাডমিন অ্যাক্সেস",
     adminText: "বেকারি পরিচালনা",
@@ -110,7 +112,7 @@ const translations = {
       "हर केक धैर्य, रचनात्मकता और व्यक्तिगत देखभाल के साथ बनाया जाता है।",
     cakesTitle: "हमारे केक",
     cakesText: "देखभाल के साथ बनाए गए कुछ केक।",
-    customize: "कस्टमाइज़ करें",
+    customize: "अपना कस्टम केक यहाँ ऑर्डर करें →",
     price: "आपका बजट",
     request: "अपनी पसंद बताएं",
     requestPlaceholder:
@@ -130,6 +132,7 @@ const translations = {
     footerText: "देखभाल से बनाए गए ताज़ा केक।",
     authorizedOnly: "केवल अधिकृत बेकरी प्रबंधन के लिए",
     cancel: "रद्द करें",
+    myChats: "मेरी चैट",
 
     adminAccess: "एडमिन एक्सेस",
     adminText: "बेकरी प्रबंधन",
@@ -161,6 +164,8 @@ export default function Home() {
   const [checkingAdmin, setCheckingAdmin] =
     useState(false);
 
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthChecked(true);
@@ -190,6 +195,69 @@ export default function Home() {
 
     return () => unsubscribe();
   }, [router]);
+
+  // Check this customer's private chats for unread replies from The Baker.
+  useEffect(() => {
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const loadUnreadChats = async (user: typeof auth.currentUser) => {
+      if (!user) {
+        if (!cancelled) {
+          setUnreadChatCount(0);
+        }
+        return;
+      }
+
+      try {
+        const token = await user.getIdToken();
+
+        const response = await fetch("/api/my-chats", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!cancelled && data.success) {
+          const count = (data.chats ?? []).filter(
+            (chat: { unread: boolean }) => chat.unread
+          ).length;
+
+          setUnreadChatCount(count);
+        }
+      } catch (error) {
+        console.error("Unread chat check error:", error);
+      }
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loadUnreadChats(user);
+
+        intervalId = setInterval(() => {
+          loadUnreadChats(user);
+        }, 30000);
+      } else {
+        setUnreadChatCount(0);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, []);
 
   const handleLanguageSelect = (
     selectedLanguage: keyof typeof translations
@@ -346,6 +414,26 @@ export default function Home() {
               {t.language}
             </span>
 
+            <button
+              type="button"
+              onClick={() => router.push("/my-chats")}
+              className="relative rounded-full border border-[#d94f83] bg-[#fff5f8] px-4 py-2 text-xs font-black text-[#c83d70] transition hover:bg-[#fff0f5] sm:text-sm"
+            >
+              💬 <span className="hidden sm:inline">{t.myChats}</span>
+              <span className="sm:hidden">Chats</span>
+
+              {unreadChatCount > 0 && (
+                <span
+                  aria-label={`${unreadChatCount} unread chat${
+                    unreadChatCount === 1 ? "" : "s"
+                  }`}
+                  className="absolute -right-1 -top-2 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#d94f83] px-1.5 text-[10px] font-black text-white shadow-sm"
+                >
+                  {unreadChatCount > 9 ? "9+" : unreadChatCount}
+                </span>
+              )}
+            </button>
+
             <select
               value={activeLanguage}
               onChange={(e) =>
@@ -410,7 +498,7 @@ export default function Home() {
                 onClick={goToCustomize}
                 className="rounded-full bg-[#d94f83] px-6 py-3 text-sm font-black text-white shadow-lg shadow-[#d94f83]/25 transition duration-300 hover:-translate-y-1 hover:bg-[#c83d70] hover:shadow-xl active:translate-y-0"
               >
-                Customize
+                {t.customize}
               </button>
 
             </div>

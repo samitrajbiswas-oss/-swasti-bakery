@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type ChatMessage = {
+  id: string;
+  senderType: "CUSTOMER" | "ADMIN";
+  senderUserId: string | null;
+  message: string;
+  createdAt: string;
+};
 
 type CakeRequest = {
   id: string;
@@ -29,6 +37,16 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [selectedChatRequestId, setSelectedChatRequestId] = useState<string | null>(null);
+  const [selectedChatRequest, setSelectedChatRequest] = useState<CakeRequest | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatError, setChatError] = useState("");
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
   // =========================================
   // LOAD ADMIN REQUESTS
@@ -90,6 +108,195 @@ export default function AdminPage() {
   useEffect(() => {
     loadRequests();
   }, []);
+
+  // =========================================
+  // DELETE REQUEST
+  // =========================================
+
+  const deleteRequest = async (requestId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this cake request?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(requestId);
+      setError("");
+
+      const response = await fetch("/api/cake-request", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: requestId }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        window.location.href = "/";
+        return;
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to delete request.");
+      }
+
+      setRequests((current) =>
+        current.filter((request) => request.id !== requestId)
+      );
+
+      if (selectedChatRequestId === requestId) {
+        closeChat();
+      }
+    } catch (err) {
+      console.error("Delete request error:", err);
+      setError(
+        err instanceof Error ? err.message : "Unable to delete request."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // =========================================
+  // LOAD CUSTOMER CHAT
+  // =========================================
+
+  const openChat = async (request: CakeRequest) => {
+    try {
+      setSelectedChatRequestId(request.id);
+      setSelectedChatRequest(request);
+      setChatMessages([]);
+      setChatInput("");
+      setChatError("");
+      setChatLoading(true);
+
+      const response = await fetch(
+        `/api/chat?requestId=${encodeURIComponent(request.id)}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        window.location.href = "/";
+        return;
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to load chat.");
+      }
+
+      setSelectedChatRequest(data.request);
+      setChatMessages(data.conversation.messages);
+    } catch (err) {
+      console.error("Admin chat loading error:", err);
+      setChatError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load chat."
+      );
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const closeChat = () => {
+    setSelectedChatRequestId(null);
+    setSelectedChatRequest(null);
+    setChatMessages([]);
+    setChatInput("");
+    setChatError("");
+  };
+
+  const sendAdminMessage = async () => {
+    const trimmedMessage = chatInput.trim();
+
+    if (!trimmedMessage || chatSending || !selectedChatRequestId) {
+      return;
+    }
+
+    try {
+      setChatSending(true);
+      setChatError("");
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestId: selectedChatRequestId,
+          message: trimmedMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        window.location.href = "/";
+        return;
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to send message.");
+      }
+
+      setChatInput("");
+
+      const refreshResponse = await fetch(
+        `/api/chat?requestId=${encodeURIComponent(selectedChatRequestId)}`,
+        {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      const refreshData = await refreshResponse.json();
+
+      if (!refreshResponse.ok || !refreshData.success) {
+        throw new Error(
+          refreshData.message || "Unable to refresh chat."
+        );
+      }
+
+      setChatMessages(refreshData.conversation.messages);
+      setSelectedChatRequest(refreshData.request);
+    } catch (err) {
+      console.error("Admin send message error:", err);
+      setChatError(
+        err instanceof Error
+          ? err.message
+          : "Unable to send message."
+      );
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  const handleChatKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendAdminMessage();
+    }
+  };
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [chatMessages]);
 
   // =========================================
   // LOGOUT
@@ -364,6 +571,296 @@ export default function AdminPage() {
             </div>
           )}
 
+        {/* ACTIVE CHAT */}
+        {selectedChatRequestId && (
+          <section
+            style={{
+              background: "white",
+              borderRadius: "20px",
+              padding: "22px",
+              marginBottom: "25px",
+              boxShadow: "0 5px 20px rgba(0,0,0,0.06)",
+              border: "2px solid #dbeafe",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: "15px",
+                flexWrap: "wrap",
+                marginBottom: "18px",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#2563eb",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  PRIVATE CUSTOMER CHAT
+                </p>
+                <h2
+                  style={{
+                    margin: "5px 0 3px",
+                    color: "#172554",
+                  }}
+                >
+                  {selectedChatRequest?.customerName || "Customer"}
+                </h2>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#64748b",
+                    fontSize: "13px",
+                  }}
+                >
+                  {selectedChatRequest?.email || ""}
+                  {selectedChatRequest?.phone
+                    ? ` • ${selectedChatRequest.phone}`
+                    : ""}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeChat}
+                style={{
+                  padding: "9px 14px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "10px",
+                  background: "white",
+                  color: "#475569",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                }}
+              >
+                Close Chat
+              </button>
+            </div>
+
+            {selectedChatRequest && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                  gap: "10px",
+                  marginBottom: "18px",
+                }}
+              >
+                <ChatInfo label="Cake" value={selectedChatRequest.cakeSize} />
+                <ChatInfo label="Flavor" value={selectedChatRequest.flavor} />
+                <ChatInfo label="Date" value={selectedChatRequest.requiredDate} />
+                <ChatInfo label="Time" value={selectedChatRequest.preferredTime} />
+                <ChatInfo
+                  label="Fulfillment"
+                  value={
+                    selectedChatRequest.fulfillment === "delivery"
+                      ? "Delivery"
+                      : "Pickup"
+                  }
+                />
+              </div>
+            )}
+
+            {chatLoading ? (
+              <div
+                style={{
+                  minHeight: "280px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                }}
+              >
+                Loading conversation...
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{
+                    minHeight: "280px",
+                    maxHeight: "420px",
+                    overflowY: "auto",
+                    background: "#f8fafc",
+                    borderRadius: "14px",
+                    padding: "16px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  {chatMessages.length === 0 ? (
+                    <div
+                      style={{
+                        minHeight: "245px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        textAlign: "center",
+                        color: "#64748b",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: "38px", marginBottom: "8px" }}>
+                          💬
+                        </div>
+                        <strong style={{ color: "#334155" }}>
+                          No messages yet
+                        </strong>
+                        <p style={{ margin: "5px 0 0", fontSize: "13px" }}>
+                          You can start the conversation with this customer.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    chatMessages.map((item) => {
+                      const isAdmin = item.senderType === "ADMIN";
+
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            justifyContent: isAdmin ? "flex-end" : "flex-start",
+                            marginBottom: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              maxWidth: "75%",
+                              padding: "11px 14px",
+                              borderRadius: "14px",
+                              background: isAdmin ? "#2563eb" : "white",
+                              color: isAdmin ? "white" : "#334155",
+                              border: isAdmin ? "none" : "1px solid #e2e8f0",
+                              borderBottomRightRadius: isAdmin ? "4px" : "14px",
+                              borderBottomLeftRadius: isAdmin ? "14px" : "4px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "800",
+                                opacity: 0.75,
+                                marginBottom: "4px",
+                              }}
+                            >
+                              {isAdmin ? "The Baker" : "Customer"}
+                            </div>
+
+                            <div
+                              style={{
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-word",
+                                lineHeight: 1.45,
+                                fontSize: "14px",
+                              }}
+                            >
+                              {item.message}
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: "5px",
+                                fontSize: "9px",
+                                opacity: 0.65,
+                              }}
+                            >
+                              {new Date(item.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                {chatError && (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      background: "#fee2e2",
+                      color: "#991b1b",
+                      padding: "10px 12px",
+                      borderRadius: "10px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {chatError}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "12px",
+                  }}
+                >
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={handleChatKeyDown}
+                    placeholder="Write a message to the customer..."
+                    rows={2}
+                    maxLength={2000}
+                    disabled={chatSending}
+                    style={{
+                      flex: 1,
+                      resize: "none",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: "12px",
+                      padding: "12px",
+                      fontFamily: "inherit",
+                      fontSize: "14px",
+                      color: "#334155",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={sendAdminMessage}
+                    disabled={!chatInput.trim() || chatSending}
+                    style={{
+                      minWidth: "85px",
+                      border: "none",
+                      borderRadius: "12px",
+                      background:
+                        !chatInput.trim() || chatSending ? "#94a3b8" : "#2563eb",
+                      color: "white",
+                      fontWeight: "700",
+                      cursor:
+                        !chatInput.trim() || chatSending
+                          ? "not-allowed"
+                          : "pointer",
+                    }}
+                  >
+                    {chatSending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    textAlign: "right",
+                  }}
+                >
+                  Enter to send • Shift + Enter for a new line
+                </p>
+              </>
+            )}
+          </section>
+        )}
+
         {/* REQUESTS */}
 
         <div
@@ -592,6 +1089,53 @@ export default function AdminPage() {
               >
                 Request ID: {request.id}
               </div>
+
+              <div
+                style={{
+                  marginTop: "15px",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => openChat(request)}
+                  style={{
+                    padding: "10px 16px",
+                    border: "none",
+                    borderRadius: "10px",
+                    background: "#2563eb",
+                    color: "white",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                  }}
+                >
+                  💬 Open Chat
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => deleteRequest(request.id)}
+                  disabled={deletingId === request.id}
+                  style={{
+                    padding: "10px 16px",
+                    border: "none",
+                    borderRadius: "10px",
+                    background:
+                      deletingId === request.id ? "#94a3b8" : "#dc2626",
+                    color: "white",
+                    fontWeight: "700",
+                    cursor:
+                      deletingId === request.id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {deletingId === request.id
+                    ? "Deleting..."
+                    : "🗑️ Delete Request"}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -639,6 +1183,47 @@ function SummaryCard({
       >
         {value}
       </h2>
+    </div>
+  );
+}
+
+// =========================================
+// CHAT INFO BOX
+// =========================================
+
+function ChatInfo({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "#eff6ff",
+        padding: "10px 12px",
+        borderRadius: "10px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "11px",
+          color: "#64748b",
+          marginBottom: "3px",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontWeight: "700",
+          color: "#1e3a8a",
+          fontSize: "13px",
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

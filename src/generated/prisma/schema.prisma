@@ -77,7 +77,41 @@ model CakeRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  chatConversation ChatConversation?
+
   @@index([userId])
   @@index([status])
   @@index([requiredDate])
+}
+
+model ChatConversation {
+  id                 String    @id @default(cuid())
+  cakeRequestId      String    @unique
+  userId             String
+  customerLastReadAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cakeRequest CakeRequest   @relation(fields: [cakeRequestId], references: [id], onDelete: Cascade)
+  messages    ChatMessage[]
+
+  @@index([userId])
+  @@index([cakeRequestId])
+}
+
+model ChatMessage {
+  id             String @id @default(cuid())
+  conversationId String
+
+  senderType   String
+  senderUserId String?
+  message      String
+
+  createdAt DateTime @default(now())
+
+  conversation ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
 }

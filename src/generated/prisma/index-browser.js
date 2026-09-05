@@ -172,6 +172,24 @@ exports.Prisma.CakeRequestScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ChatConversationScalarFieldEnum = {
+  id: 'id',
+  cakeRequestId: 'cakeRequestId',
+  userId: 'userId',
+  customerLastReadAt: 'customerLastReadAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ChatMessageScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  senderType: 'senderType',
+  senderUserId: 'senderUserId',
+  message: 'message',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -192,7 +210,9 @@ exports.Prisma.ModelName = {
   User: 'User',
   Order: 'Order',
   OTP: 'OTP',
-  CakeRequest: 'CakeRequest'
+  CakeRequest: 'CakeRequest',
+  ChatConversation: 'ChatConversation',
+  ChatMessage: 'ChatMessage'
 };
 
 /**

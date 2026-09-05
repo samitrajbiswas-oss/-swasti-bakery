@@ -23,6 +23,7 @@ export default function CustomizeCakePage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -124,6 +125,9 @@ export default function CustomizeCakePage() {
         "Cake request submitted:",
         result.requestId
       );
+
+      // Save the request ID so this exact cake request can open its private chat.
+      setSubmittedRequestId(result.requestId);
 
       // Success
       setSuccess(true);
@@ -482,6 +486,19 @@ export default function CustomizeCakePage() {
             </div>
           )}
 
+          {/* Chat with The Baker - available only after a successful request */}
+          {success && submittedRequestId && (
+            <button
+              type="button"
+              className="chat-button"
+              onClick={() =>
+                router.push(`/chat?requestId=${submittedRequestId}`)
+              }
+            >
+              💬 Chat with The Baker
+            </button>
+          )}
+
           {/* Submit */}
           <button
             type="submit"
@@ -767,6 +784,25 @@ export default function CustomizeCakePage() {
         .success p {
           margin: 0;
           line-height: 1.5;
+        }
+
+        .chat-button {
+          width: 100%;
+          border: 1.5px solid #a95c3c;
+          border-radius: 14px;
+          padding: 16px;
+          margin-bottom: 12px;
+          background: #fff7f1;
+          color: #8b4a2f;
+          font-size: 17px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+
+        .chat-button:hover {
+          background: #ffeadb;
+          transform: translateY(-1px);
         }
 
         .submit {
